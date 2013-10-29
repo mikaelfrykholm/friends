@@ -1,0 +1,4 @@
+friends
+=======
+
+Ostatus app
