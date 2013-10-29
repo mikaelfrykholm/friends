@@ -15,14 +15,13 @@ application = tornado.web.Application([
     (r"/.well-known/host-meta", XrdHandler),
     (r"/user/(.+)", UserHandler),
     ],debug=True,
-    
 )
 srv = tornado.httpserver.HTTPServer(application, ssl_options={
         "certfile":  "ronin.local.pem",
         "keyfile":  "ronin.local.key",
     })
 
-
 if __name__ == "__main__":
     srv.listen(443)
     tornado.ioloop.IOLoop.instance().start()
+    
