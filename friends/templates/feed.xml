@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:activity='http://activitystrea.ms/spec/1.0/' xmlns='http://www.w3.org/2005/Atom'><link rel='hub' href='{{hub_url}}'/><link rel='self' href='{{user}}'/>
+  <author>
+    <uri>{{feed_url}}</uri>
+    <name>{{user}}</name>
+    <object-type xmlns='http://activitystrea.ms/spec/1.0/'>http://activitystrea.ms/schema/1.0/person</object-type>
+  </author>
+  <title>{{user}}'s tidslinje</title>
+  <id>{{feed_url}}</id>
+ <updated>{{arrow.now().isoformat()}}</updated>
+  {% for entry in entries %}
+  <entry>
+    <id>tag:frykholm.com,2016:{{entry['id']}}</id>
+    <title>titeln</title>
+    <updated>{{arrow.get(entry['ts']).isoformat()}}</updated>
+    <activity:verb>
+      http://activitystrea.ms/schema/1.0/post
+    </activity:verb>
+    <content type="html" >
+       {{entry['text']}}
+    </content>
+    <activity:object-type>
+        http://activitystrea.ms/schema/1.0/article
+    </activity:object-type>
+  </entry>
+  {% end %}
+  
+</feed>

@@ -13,5 +13,6 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         "tornadoweb >= 3.1",
+        "sqlite >= 3",
     ],
 )

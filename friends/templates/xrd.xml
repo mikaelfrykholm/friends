@@ -5,7 +5,7 @@
     <hm:Host>{{hostname}}</hm:Host>
  
     <Link rel='lrdd'
-          template='{{ url }}/user/{uri}'>
+          template='{{ url }}/finger/{uri}'>
         <Title>Resource Descriptor</Title>
     </Link>
 </XRD>
