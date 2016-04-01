@@ -6,6 +6,7 @@ import sqlite3
 import arrow
 import datetime
 from rd import RD, Link
+import hashlib
 db = None
 #insert into user (name,email) values('mikael','mikael@frykholm.com');
 #insert into entry (userid,text) values (1,'My thoughts on ostatus');
@@ -36,12 +37,13 @@ class PushHandler(tornado.web.RequestHandler):
         path = hub_topic.split(self.settings['domain'])[1]
         user = path.split('user/')[1]
         row = db.execute("select id from user where name=?",(user,)).fetchone()
-        if row:
-            db.execute("INSERT into subscriptions (userid, expires, callback, verified) values (?,?,?,?)",(row['id'],datetime.datetime.now(),hub_callback,False))
+        if row: #FIXME calculate expire timestamp
+            db.execute("INSERT into subscriptions (userid, expires, callback, secret, verified) values (?,?,?,?)",(row['id'],datetime.datetime.now(),hub_secret,hub_callback,False))
             db.commit()
             self.set_status(202)
             #TODO add GET callback with the same data we got
-            #TODO store secret, add it to outgoing feeds with hmac
+            #TODO add secret to outgoing feeds with hmac
+
 class XrdHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("templates/xrd.xml", hostname="ronin.frykholm.com", url=self.settings['domain'])
@@ -72,7 +74,6 @@ class FingerHandler(tornado.web.RequestHandler):
         rd.links.append(lnk)
         rd.links.append(lnk2)
         self.write(rd.to_json())
-        #self.render("templates/user.xml", user=user)
 
 class UserHandler(tornado.web.RequestHandler):
     def get(self, user):
@@ -111,6 +112,7 @@ def setup_db(path):
                                         userid integer,
                                         expires datetime,
                                         callback varchar,
+                                        secret varchar,
                                         verified bool,
                                         FOREIGN KEY(userid) REFERENCES user(id));""")
     con.commit()
