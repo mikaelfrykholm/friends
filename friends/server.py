@@ -30,6 +30,7 @@ class PushHandler(tornado.web.RequestHandler):
         hub_lease_seconds = self.get_argument('hub.lease_seconds','')
         hub_secret = self.get_argument('hub.sercret','')
         hub_verify_token = self.get_argument('hub.verify_token','')
+        print(self.request.body)
         if hub_mode == 'unsubscribe':
             pass #FIXME
         path = hub_topic.split(self.settings['domain'])[1]
@@ -39,6 +40,8 @@ class PushHandler(tornado.web.RequestHandler):
             db.execute("INSERT into subscriptions (userid, expires, callback, verified) values (?,?,?,?)",(row['id'],datetime.datetime.now(),hub_callback,False))
             db.commit()
             self.set_status(202)
+            #TODO add GET callback with the same data we got
+            #TODO store secret, add it to outgoing feeds with hmac
 class XrdHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("templates/xrd.xml", hostname="ronin.frykholm.com", url=self.settings['domain'])
