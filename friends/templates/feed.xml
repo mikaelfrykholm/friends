@@ -14,9 +14,8 @@
     <id>tag:frykholm.com,2016:{{entry['id']}}</id>
     <title>titeln</title>
     <updated>{{arrow.get(entry['ts']).isoformat()}}</updated>
-    <activity:verb>
-      http://activitystrea.ms/schema/1.0/post
-    </activity:verb>
+      <activity:object-type>http://activitystrea.ms/schema/1.0/note</activity:object-type>
+         <activity:verb>http://activitystrea.ms/schema/1.0/post</activity:verb>
     <content type="html" >
        {{entry['text']}}
     </content>
