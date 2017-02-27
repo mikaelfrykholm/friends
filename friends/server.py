@@ -103,6 +103,25 @@ class UserHandler(tornado.web.RequestHandler):
                     arrow=arrow )
         #digest = hmac.new()
 
+    def post(self, user):
+        entries = db.execute("select entry.id,text,ts from user,entry where user.id=entry.userid and user.name=?",(user,))
+
+        self.set_header("Content-Type", 'application/atom+xml')
+        out = self.render_string("templates/feed.xml",
+                          user=user,
+                          feed_url="{}/user/{}".format(self.settings['domain'], user),
+                          hub_url="{}/hub".format(self.settings['domain']),
+                          entries=entries,
+                          arrow=arrow)
+        #import pdb;pdb.set_trace()
+        subscribers = db.execute("select callback, secret from subscriptions, user where user.id=subscriptions.userid and user.name=?",(user,))
+        for url,secret in subscribers:
+            digest = hmac.new(secret.encode('utf8'), out, digestmod='sha1').hexdigest()
+
+            req = httpclient.HTTPRequest(url=url, allow_nonstandard_methods=True,method='POST', body=out, headers={"X-Hub-Signature":"sha1={}".format(digest),"Content-Type": 'application/atom+xml',"Content-Length":len(out)})
+            apa = httpclient.HTTPClient()
+            apa.fetch(req)
+
 application = tornado.web.Application([
     (r"/.well-known/host-meta", XrdHandler),
     (r"/.well-known/webfinger", FingerHandler),
@@ -139,5 +158,4 @@ if __name__ == "__main__":
     db.row_factory = sqlite3.Row
     srv.listen(8080)
     tornado.ioloop.IOLoop.instance().start()
-    #TODO hmac.new(b'5cc324285ece71e21e9554f4056563806f6ce0b7e4ab18d0133b602f8ba7e87a',open("apa.xml","rb").read(),digestmod='sha1').hexdigest()
-'b75d4733e0802629a0c15d0faa8de8fc9778cd05' queue runner
+
