@@ -1,2 +1,3 @@
 #!/bin/bash
-sudo python3 server.py --logging=debug
+#setcap 'cap_net_bind_service=+ep' /path/to/program
+python3 server.py --logging=debug
