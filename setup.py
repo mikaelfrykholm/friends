@@ -13,5 +13,6 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         "tornado >= 3.1",
+        "arrow",
     ],
 )
