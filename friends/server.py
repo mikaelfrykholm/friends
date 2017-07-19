@@ -1,29 +1,34 @@
+#!/usr/bin/python3
 import tornado.ioloop
 import tornado.web
-import os, os.path
+import os
+import os.path
 import tornado.httpserver
 import tornado.httpclient as httpclient
 import sqlite3
 import arrow
 import datetime
 from rd import RD, Link
-import hashlib
 import hmac
+from tornado.options import options, define
+import logging
 db = None
-#insert into user (name,email) values('mikael','mikael@frykholm.com');
-#insert into entry (userid,text) values (1,'My thoughts on ostatus');
-import tornado.options
+# insert into user (name,email) values('mikael','mikael@frykholm.com');
+# insert into entry (userid,text) values (1,'My thoughts on ostatus');
+
 
 settings = {
     "static_path": os.path.join(os.path.dirname(__file__), "static"),
-    "cookie_secret": "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+    "cookie_secret": "supersecret123",
     "login_url": "/login",
     "xsrf_cookies": False,
     "domain":"https://ronin.frykholm.com",
     
 }
-class PushHandler(tornado.web.RequestHandler):
+
 #curl -v -k "https://ronin.frykholm.com/hub" -d "hub.callback=a" -d "hub.mode=b" -d "hub.topic=c" -d "hub.verify=d"
+
+class PushHandler(tornado.web.RequestHandler):
     def post(self):
         """ Someone wants to subscribe to hub_topic feed"""
         hub_callback = self.get_argument('hub.callback')
@@ -93,7 +98,7 @@ class FingerHandler(tornado.web.RequestHandler):
 class UserHandler(tornado.web.RequestHandler):
     def get(self, user):
         entries = db.execute("select entry.id,text,ts from user,entry where user.id=entry.userid and user.name=?",(user,))
-        #import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         self.set_header("Content-Type", 'application/atom+xml')
         out = self.render("templates/feed.xml",
                     user=user, 
@@ -129,8 +134,10 @@ application = tornado.web.Application([
     (r"/hub", PushHandler),
     ],debug=True,**settings)
 srv = tornado.httpserver.HTTPServer(application, )
+
 def setup_db(path):
-    print("No db found, creating in {}".format(path))
+    gen_log = logging.getLogger("tornado.general")
+    gen_log.warn("No db found, creating in {}".format(path))
     con = sqlite3.connect(path)
     con.execute(""" create table user (id integer primary key,
                                        name varchar,
@@ -149,13 +156,21 @@ def setup_db(path):
                                         FOREIGN KEY(userid) REFERENCES user(id));""")
     con.commit()
 
+
+options.define("config_file", default="/etc/friends/friends.conf", type=str)
+options.define("webroot", default="/srv/friends/", type=str)
+
 if __name__ == "__main__":
     dbPath = 'friends.db'
+#    options.log_file_prefix="/tmp/friends"
+    tornado.options.parse_config_file(options.config_file)
     tornado.options.parse_command_line()
+    gen_log = logging.getLogger("tornado.general")
+    gen_log.info("Reading config from: %s", options.config_file,)
     if not os.path.exists(dbPath):
         setup_db(dbPath)
     db = sqlite3.connect(dbPath, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     db.row_factory = sqlite3.Row
-    srv.listen(8080)
+    srv.listen(80)
     tornado.ioloop.IOLoop.instance().start()
 
