@@ -10,7 +10,8 @@
   <id>{{feed_url}}</id>
  <updated>{{arrow.now().isoformat()}}</updated>
   {% for entry in entries %}
-  <entry>
+    {{entry['text']}}
+    {# <entry>
     <id>tag:frykholm.com,2016:{{entry['id']}}</id>
     <title>titeln</title>
     <updated>{{arrow.get(entry['ts']).isoformat()}}</updated>
@@ -22,7 +23,7 @@
     <activity:object-type>
         http://activitystrea.ms/schema/1.0/article
     </activity:object-type>
-  </entry>
+  </entry> #}
   {% end %}
   
 </feed>

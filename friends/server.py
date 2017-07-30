@@ -43,10 +43,10 @@ class PushHandler(tornado.web.RequestHandler):
             pass #FIXME
         path = hub_topic.split(self.settings['domain'])[1]
         user = path.split('user/')[1]
-        row = db.execute("select id from user where name=?",(user,)).fetchone()
+        row = db.execute("select id from author where name=?",(user,)).fetchone()
         expire = datetime.datetime.utcnow() + datetime.timedelta(seconds=int(hub_lease_seconds))
         if row:
-            db.execute("INSERT into subscriptions (userid, expires, callback, secret, verified) "
+            db.execute("INSERT into subscriptions (author, expires, callback, secret, verified) "
                        "values (?,?,?,?,?)",(row['id'],expire,hub_callback,hub_secret,False))
             db.commit()
             self.set_status(202)
@@ -68,13 +68,25 @@ class XrdHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("templates/xrd.xml", hostname="ronin.frykholm.com", url=self.settings['domain'])
 
+class apa():
+    def LookupPublicKey(self, signer_uri=None):
+        return """RSA.jj2_lJ348aNh_9s3eCHlJlbMQdnHVm9svdU2ESW86TvV-4wZId-z3M029pjPvco0UEvlUUnJytXwoTLd70pzfZ8Cu5MMwGbvm9asI9-PKUDSNFgr5T_B017qUXOG5UH1ZNI_fVA2mSAkxxfEksv4HXg43dBvEIW94JpyAtqggHM=.AQAB.Bzz_LcnoLCu7RfDa3sMizROnq0YwzaY362UZLkA0X84KspVLhhzDI15SCLR4BdlvVhK2pa9SlH7Uku9quc2ZGNyr5mEdqjO7YTbQA9UCgbobEq2ImqV_j7Y4IfjPc8prDPCKb_mO9DUlS_ZUxJYfsOuc-SVlGmPZ93uEl8i9OjE="""
+
+
+class SalmonHandler(tornado.web.RequestHandler):
+    def post(self, user):
+        sp = salmoning.SalmonProtocol()
+        sp.key_retriever = apa()
+        data = sp.ParseSalmon(self.request.body)
+        pass
+
 class FingerHandler(tornado.web.RequestHandler):
     def get(self):
         user = self.get_argument('resource')
         user = user.split('acct:')[1]
         (user,domain) = user.split('@')
-        rows = db.execute("select id from user where user.name=?",(user,)).fetchone()
-        if not rows:
+        row = db.execute("select id,salmon_pubkey from author where author.name=?",(user,)).fetchone()
+        if not row:
             self.set_status(404)
             self.write("Not found")
             self.finish()
@@ -93,11 +105,19 @@ class FingerHandler(tornado.web.RequestHandler):
         rd.properties.append('http://spec.example.net/type/person')
         rd.links.append(lnk)
         rd.links.append(lnk2)
+        rd.links.append(Link(rel="magic-public-key",
+                             href="data:application/magic-public-key,RSA."+row['salmon_pubkey']))
+        rd.links.append(Link(rel="salmon",
+                             href="{}/salmon/{}".format(self.settings['domain'],user)))
+        rd.links.append(Link(rel="http://salmon-protocol.org/ns/salmon-replies",
+                             href="{}/salmon/{}".format(self.settings['domain'],user)))
+        rd.links.append(Link(rel="http://salmon-protocol.org/ns/salmon-mention",
+                             href="{}/salmon/{}".format(self.settings['domain'],user)))
         self.write(rd.to_json())
 
 class UserHandler(tornado.web.RequestHandler):
     def get(self, user):
-        entries = db.execute("select entry.id,text,ts from user,entry where user.id=entry.userid and user.name=?",(user,))
+        entries = db.execute("select entry.id,text,ts from author,entry where author.id=entry.author and author.name=?",(user,))
         # import pdb;pdb.set_trace()
         self.set_header("Content-Type", 'application/atom+xml')
         out = self.render("templates/feed.xml",
@@ -119,7 +139,8 @@ class UserHandler(tornado.web.RequestHandler):
                           entries=entries,
                           arrow=arrow)
         #import pdb;pdb.set_trace()
-        subscribers = db.execute("select callback, secret from subscriptions, user where user.id=subscriptions.userid and user.name=?",(user,))
+        # Notify subscribers
+        subscribers = db.execute("select callback, secret from subscriptions, author where author.id=subscriptions.author and author.name=?",(user,))
         for url,secret in subscribers:
             digest = hmac.new(secret.encode('utf8'), out, digestmod='sha1').hexdigest()
 
@@ -139,21 +160,27 @@ def setup_db(path):
     gen_log = logging.getLogger("tornado.general")
     gen_log.warn("No db found, creating in {}".format(path))
     con = sqlite3.connect(path)
-    con.execute(""" create table user (id integer primary key,
+    con.execute("""create table author (id integer primary key,
+                                       uri varchar,
                                        name varchar,
-                                       email varchar);
-                    create table entry (id integer primary key, 
-                                        userid INTEGER, 
-                                        text varchar,
+                                       email varchar,
+                                       salmon_pubkey varchar, -- base64_urlencoded public modulus +.+ base64_urlencoded public exponent
+                                       salmon_privkey varchar  -- base64_urlencoded private exponent
+                                       );""")
+    con.execute(""" create table entry (id integer primary key, 
+                                        author INTEGER, 
+                                        text varchar, -- xml atom <entry>
+                                        verb varchar,
                                         ts timestamp default current_timestamp,
-                                        FOREIGN KEY(userid) REFERENCES user(id));
+                                        FOREIGN KEY(author) REFERENCES author(id));""")
+    con.execute("""
                     create table subscriptions (id integer primary key,
-                                        userid integer,
+                                        author integer,
                                         expires datetime,
                                         callback varchar,
                                         secret varchar,
                                         verified bool,
-                                        FOREIGN KEY(userid) REFERENCES user(id));""")
+                                        FOREIGN KEY(author) REFERENCES author(id));""")
     con.commit()
 
 
