@@ -5,6 +5,7 @@ import os
 import os.path
 import tornado.httpserver
 import tornado.httpclient as httpclient
+import salmoning
 import sqlite3
 import arrow
 import datetime
@@ -151,6 +152,7 @@ class UserHandler(tornado.web.RequestHandler):
 application = tornado.web.Application([
     (r"/.well-known/host-meta", XrdHandler),
     (r"/.well-known/webfinger", FingerHandler),
+    (r"/salmon/(.+)", SalmonHandler),
     (r"/user/(.+)", UserHandler),
     (r"/hub", PushHandler),
     ],debug=True,**settings)
